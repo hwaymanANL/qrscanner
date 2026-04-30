@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AM Lab QR Scanner</title>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #1a1a2e;
+            color: white;
+            text-align: center;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        h2 { margin: 10px 0; font-size: 22px; }
+        #videoContainer {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            margin: 15px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 3px solid #00126b;
+        }
+        video { width: 100%; display: block; }
+        #overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px; height: 200px;
+            border: 3px solid rgba(141, 198, 63, 0.8);
+            border-radius: 10px;
+            pointer-events: none;
+        }
+        canvas { display: none; }
+        #result {
+            font-size: 20px;
+            margin: 15px 0;
+            padding: 15px 25px;
+            background: #00126b;
+            border-radius: 10px;
+            min-width: 300px;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #result.success { background: #2d6b1e; }
+        #result.error { background: #6b1e1e; }
+        #status { font-size: 14px; color: #aaa; margin: 10px 0; }
+        .btn {
+            padding: 12px 30px;
+            font-size: 18px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: 600;
+        }
+        .btn-back { background: #8dc63f; color: white; }
+        .btn-retry { background: #3860b2; color: white; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h2>AM Lab - Scan QR Code</h2>
+
+    <div id="videoContainer">
+        <video id="video" autoplay playsinline></video>
+        <div id="overlay"></div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <div id="result">Point camera at a QR code...</div>
+    <div id="status">Scanning...</div>
+
+    <div id="buttons" class="hidden">
+        <button class="btn btn-retry" onclick="location.reload()">Scan Another</button>
+        <button class="btn btn-back" onclick="goToApp('')">Open App</button>
+    </div>
+
+    <script>
+        var APP_URL = 'https://apps.gov.powerapps.us/play/e/default-0cfca185-25f7-49e3-8ae7-704d5326e285/a/50364377-40a0-4c1c-b5d1-3d6c6a9b0541?tenantId=0cfca185-25f7-49e3-8ae7-704d5326e285';
+
+        var video = document.getElementById('video');
+        var canvas = document.getElementById('canvas');
+        var ctx = canvas.getContext('2d');
+        var resultDiv = document.getElementById('result');
+        var statusDiv = document.getElementById('status');
+        var buttonsDiv = document.getElementById('buttons');
+        var overlay = document.getElementById('overlay');
+        var scanning = true;
+        var frameCount = 0;
+
+        function goToApp(material) {
+            if (material) {
+                window.location.href = APP_URL + '&material=' + encodeURIComponent(material);
+            } else {
+                window.location.href = APP_URL;
+            }
+        }
+
+        function onFound(data) {
+            scanning = false;
+            resultDiv.textContent = 'Found: ' + data;
+            resultDiv.className = 'success';
+            statusDiv.textContent = 'Redirecting to app in 2 seconds...';
+            overlay.style.borderColor = 'rgba(141, 198, 63, 1)';
+            buttonsDiv.classList.remove('hidden');
+
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(function(t) { t.stop(); });
+            }
+
+            setTimeout(function() {
+                goToApp(data);
+            }, 2000);
+        }
+
+        function onError(msg) {
+            scanning = false;
+            resultDiv.textContent = 'Error: ' + msg;
+            resultDiv.className = 'error';
+            statusDiv.textContent = '';
+            buttonsDiv.classList.remove('hidden');
+        }
+
+        function scan() {
+            if (!scanning) return;
+
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0);
+
+                var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                var code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: 'dontInvert'
+                });
+
+                frameCount++;
+                if (frameCount % 30 === 0) {
+                    statusDiv.textContent = 'Scanning... (' + frameCount + ' frames checked)';
+                }
+
+                if (code && code.data) {
+                    onFound(code.data);
+                    return;
+                }
+            }
+            requestAnimationFrame(scan);
+        }
+
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            }).then(function(stream) {
+                video.srcObject = stream;
+                video.play();
+                requestAnimationFrame(scan);
+            }).catch(function(err) {
+                onError('Camera access denied: ' + err.message);
+            });
+        } else {
+            onError('Camera not supported in this browser');
+        }
+    </script>
+</body>
+</html>
