@@ -124,7 +124,12 @@
 
         var url = APP_URL + '&amp;material=' + encodeURIComponent(data);
         debugDiv.textContent = 'URL: ' + url;
-        window.location.replace(url);
+
+        var a = document.createElement('a');
+        a.href = url;
+        a.rel = 'noreferrer';
+        document.body.appendChild(a);
+        a.click();
     }
 
 
