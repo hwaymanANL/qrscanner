@@ -113,20 +113,20 @@
         function onFound(data) {
             scanning = false;
             resultDiv.textContent = 'Found: ' + data;
-            resultDiv.className = 'success';
+            resultDiv.style.background = '#2d6b1e';
             overlay.style.borderColor = 'rgba(141, 198, 63, 1)';
-            buttonsDiv.classList.remove('hidden');
+            statusDiv.textContent = 'Redirecting...';
 
-            var url = APP_URL + '&material=' + encodeURIComponent(data);
-            appLink.href = url;
-            appLink.textContent = 'Open App with: ' + data;
-            statusDiv.textContent = 'Tap the green button to open the app.';
-            debugDiv.textContent = 'URL: ' + url;
 
-            if (video.srcObject) {
-                video.srcObject.getTracks().forEach(function(t) { t.stop(); });
-            }
+        if (video.srcObject) {
+            video.srcObject.getTracks().forEach(function(t) { t.stop(); });
         }
+
+        var url = APP_URL + '&amp;material=' + encodeURIComponent(data);
+        debugDiv.textContent = 'URL: ' + url;
+        window.location.replace(url);
+    }
+
 
         function onError(msg) {
             scanning = false;
